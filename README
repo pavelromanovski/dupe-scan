@@ -1,0 +1,2 @@
+Peeks around a specified folder and its subfolders checking if any duplicate files exist.
+Whether a file is considered a duplicate depends on its contents, not its filename.
