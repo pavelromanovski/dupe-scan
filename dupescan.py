@@ -9,12 +9,18 @@ import re
 hiddenFilePattern = re.compile(r'^.*/(.*)')
 
 def printVerbose(message=""):
+    "Prints the console if verbose output is enabled"
     if cmdArgs.verbose:
         print(message)
+
+def stripExtraSlashes(filePath):
+    "Strips extra slashes in a filepath"
+    return re.sub('/+','/',filePath)
 
 def isHiddenFileFolder(fullFilePath):
     "Determines if a file or folder is considered hidden."
     global hiddenFilePattern
+
     if bool(hiddenFilePattern.match(fullFilePath)):
         return True
     else:
@@ -24,53 +30,40 @@ def gatherFileNames(startDir,showHiddenFilesDirs=True):
     "Gathers all file names and their paths under a particular folder location. Does not add directories."
     fullFilePaths = []
 
+    printVerbose(' + Gathering the list of files to be hashed')
+
     for parentDir, childDirs, childFiles in os.walk(startDir):
-        #printVerbose(' - ' + parentDir)
 
         for childFile in childFiles:
-            fullFilePath = parentDir + "/" + childFile
+            fullFilePath = stripExtraSlashes(parentDir + "/" + childFile)
 
             if showHiddenFilesDirs and isHiddenFileFolder(parentDir+'/'+childFile):
                 fullFilePaths.append(fullFilePath)
             else:
                 fullFilePaths.append(fullFilePath)
-            printVerbose(fullFilePath)
+            printVerbose('   - ' + fullFilePath)
 
     return fullFilePaths
+
 
 def generateFileHashes(fullFilePaths):
     "Generates a hash(key) for each filename(value) and returns a dictionary with as {hash, <files that match hash>}. Multiple files may exist for one hash."
 
-    for root, dirs, files in os.walk(location):
-        printVerbose(' - ' + root)
-        for file in files:
-            contents = open(root+"/"+file,"rb").read()
-            printVerbose("\t+ {0}".format(file))
-            hash = hashlib.sha512(contents).hexdigest()
-
-            if hash not in fileHashes:
-                fileHashes[hash] = [root+"/"+file]
-            else:
-                fileHashes[hash].append(root+"/"+file)
-        printVerbose() # for newline
-    return fileHashes
-
-def getFileHashes(location):
-    "Generates a hash for each filename."
     fileHashes = {}
 
-    for root, dirs, files in os.walk(location):
-        printVerbose(' - ' + root)
-        for file in files:
-            contents = open(root+"/"+file,"rb").read()
-            printVerbose("\t+ {0}".format(file))
-            hash = hashlib.sha512(contents).hexdigest()
+    printVerbose('\n + Generating hashes from the file list')
 
-            if hash not in fileHashes:
-                fileHashes[hash] = [root+"/"+file]
-            else:
-                fileHashes[hash].append(root+"/"+file)
-        printVerbose() # for newline
+    for filePath in fullFilePaths:
+
+        fileContents = open(filePath, "rb").read()
+        fileHash = hashlib.sha512(fileContents).hexdigest()
+        printVerbose("   - {0} [ {1} ] ".format(filePath, fileHash))
+
+        if fileHash in fileHashes:
+            fileHashes[fileHash].append(filePath)
+        else:
+            fileHashes[fileHash] = [filePath]
+
     return fileHashes
 
 if __name__ == "__main__":
@@ -83,19 +76,25 @@ if __name__ == "__main__":
     cmdArgs = argsParser.parse_args()
 
     try:
-        printVerbose(" - Checking if any duplicate files exist under \"{0}\"\n".format(cmdArgs.location))
-        fileHashes = getFileHashes(cmdArgs.location)
+        printVerbose(" + Checking if any duplicate files exist under \"{0}\"\n".format(cmdArgs.location))
+        filePaths = gatherFileNames(cmdArgs.location)
+        fileHashes = generateFileHashes(filePaths)
+
+        printVerbose("\n + Checking if there are any file duplicates".format(cmdArgs.location))
+        fileDuplicates = 0
+        for fileHash, filePaths in fileHashes.items():
+            if len(filePaths) > 1:
+                fileDuplicates += 1
+                #print("   - Collision of {0}".format(fileHash))
+                print(' Duplicate # ', fileDuplicates)
+                for filePath in filePaths:
+                    print("\t{0}".format(filePath))
+                print()
+        if fileDuplicates == 0:
+            printVerbose("No collisions detected.")
     except Exception as e:
         print("Exception: ", e)
 
-    collisionFound = False
-    for fileHash, fileName in fileHashes.items():
-        if len(fileName) > 1:
-            collisionFound = True
-            print("Collision of {0}".format(fileHash))
-            for item in fileName:
-                print("\t{0}".format(item))
-            print()
+    sys.exit(1)
 
-    if collisionFound == False:
-        printVerbose("No collisions detected.")
+
