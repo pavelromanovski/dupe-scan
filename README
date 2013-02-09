@@ -1,2 +1,16 @@
-Peeks around a specified folder and its subfolders checking if any duplicate files exist.
-Whether a file is considered a duplicate depends on its contents, not its filename.
+usage: dupescan.py [-h] [-v] [-hi] [location]
+
+Peeks around a specified folder and its subfolders checking if any duplicate
+files exist. Whether a file is considered a duplicate depends on its contents,
+not its filename. If in non-verbose mode, returns nothing if there aren't any
+file collisions. Otherwise, it returns the filenames with their paths that
+contain the same object
+
+positional arguments:
+  location       file location of where to begin search
+
+  optional arguments:
+    -h, --help     show this help message and exit
+    -v, --verbose  verbose mode
+    -hi, --hidden  scans all files including hidden files and folders
+
