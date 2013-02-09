@@ -3,63 +3,99 @@ import os
 import hashlib
 import sys
 import argparse
+import re
 
-'''
-Peeks around a specified folder and its subfolders checking if any duplicate files exist.
-Whether a file is considered a duplicate depends on its contents, not its filename.
-'''
+# regular expression to match hidden files and folders
+hiddenFilePattern = re.compile(r'^.*/(.*)')
 
-location = r"."
-database = {}
-VERBOSE = False
-# contains arguments passed from command line or their defaults in their absence
-cmdArgs = None
+def printVerbose(message=""):
+    if cmdArgs.verbose:
+        print(message)
 
-def printVerbose(text):
-    pass
+def isHiddenFileFolder(fullFilePath):
+    "Determines if a file or folder is considered hidden."
+    global hiddenFilePattern
+    if bool(hiddenFilePattern.match(fullFilePath)):
+        return True
+    else:
+        return False
 
-def read_dirs():
-    "Reads all files from a given location"
-    for root, dirs, files in os.walk(location):
-        if VERBOSE == True: print(root)
-        for fil in files:
-            try:
-                contents = open(root+"/"+fil,"rb").read()
-                if VERBOSE == True: print("\t{0}".format(fil))
-                hash = hashlib.sha512(contents).hexdigest()
-            except Exception as e:
-                print("Exception: ", e)
+def gatherFileNames(startDir,showHiddenFilesDirs=True):
+    "Gathers all file names and their paths under a particular folder location. Does not add directories."
+    fullFilePaths = []
 
-            if hash not in database:
-                database[hash] = [root+"/"+fil]
+    for parentDir, childDirs, childFiles in os.walk(startDir):
+        #printVerbose(' - ' + parentDir)
+
+        for childFile in childFiles:
+            fullFilePath = parentDir + "/" + childFile
+
+            if showHiddenFilesDirs and isHiddenFileFolder(parentDir+'/'+childFile):
+                fullFilePaths.append(fullFilePath)
             else:
-                database[hash].append(root+"/"+fil)
-        if VERBOSE == True: print()
+                fullFilePaths.append(fullFilePath)
+            printVerbose(fullFilePath)
+
+    return fullFilePaths
+
+def generateFileHashes(fullFilePaths):
+    "Generates a hash(key) for each filename(value) and returns a dictionary with as {hash, <files that match hash>}. Multiple files may exist for one hash."
+
+    for root, dirs, files in os.walk(location):
+        printVerbose(' - ' + root)
+        for file in files:
+            contents = open(root+"/"+file,"rb").read()
+            printVerbose("\t+ {0}".format(file))
+            hash = hashlib.sha512(contents).hexdigest()
+
+            if hash not in fileHashes:
+                fileHashes[hash] = [root+"/"+file]
+            else:
+                fileHashes[hash].append(root+"/"+file)
+        printVerbose() # for newline
+    return fileHashes
+
+def getFileHashes(location):
+    "Generates a hash for each filename."
+    fileHashes = {}
+
+    for root, dirs, files in os.walk(location):
+        printVerbose(' - ' + root)
+        for file in files:
+            contents = open(root+"/"+file,"rb").read()
+            printVerbose("\t+ {0}".format(file))
+            hash = hashlib.sha512(contents).hexdigest()
+
+            if hash not in fileHashes:
+                fileHashes[hash] = [root+"/"+file]
+            else:
+                fileHashes[hash].append(root+"/"+file)
+        printVerbose() # for newline
+    return fileHashes
 
 if __name__ == "__main__":
-    argsParser = argparse.ArgumentParser()
+    argsParser = argparse.ArgumentParser(description='Peeks around a specified folder and its subfolders checking if any duplicate files exist.'
+            ' Whether a file is considered a duplicate depends on its contents, not its filename. If in non-verbose mode, returns nothing if '
+            'there aren\'t any file collisions. Otherwise, it returns the filenames with their paths that contain the same object')
     argsParser.add_argument('-v', '--verbose', help='verbose mode', action='store_true')
-    argsParser.add_argument('-a', '--all', help='scans all files including hidden files and folders', action='store_true')
-    argsParser.add_argument('location', help='file location of where to begin search', default=r'.', nargs='?')
-
+    argsParser.add_argument('-hi', '--hidden', help='scans all files including hidden files and folders', action='store_true')
+    argsParser.add_argument('location', help='file location of where to begin search', default=os.getcwd(), nargs='?')
     cmdArgs = argsParser.parse_args()
 
-    if len(sys.argv) > 1:
-        location = sys.argv[1]
-    print("Checking if any duplicate files exist under \"{0}\".".format(location))
     try:
-        read_dirs()
+        printVerbose(" - Checking if any duplicate files exist under \"{0}\"\n".format(cmdArgs.location))
+        fileHashes = getFileHashes(cmdArgs.location)
     except Exception as e:
         print("Exception: ", e)
 
-    collision = False
-    for key, value in database.items():
-        if len(value) > 1:
-            collision = True
-            print("Collision of {0}".format(key))
-            for item in value:
+    collisionFound = False
+    for fileHash, fileName in fileHashes.items():
+        if len(fileName) > 1:
+            collisionFound = True
+            print("Collision of {0}".format(fileHash))
+            for item in fileName:
                 print("\t{0}".format(item))
             print()
 
-    if collision == False:
-        print("No collisions detected.")
+    if collisionFound == False:
+        printVerbose("No collisions detected.")
