@@ -86,12 +86,11 @@ if __name__ == "__main__":
             if len(filePaths) > 1:
                 fileDuplicates += 1
                 #print("   - Collision of {0}".format(fileHash))
-                print(' Duplicate # ', fileDuplicates)
+                print('   - File Duplicate #{} [ {} ]'.format(fileDuplicates, fileHash))
                 for filePath in filePaths:
-                    print("\t{0}".format(filePath))
-                print()
+                    print("\t* {0}".format(filePath))
         if fileDuplicates == 0:
-            printVerbose("No collisions detected.")
+            printVerbose(" + No fule duplicates detected.")
     except Exception as e:
         print("Exception: ", e)
 
