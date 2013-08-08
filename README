@@ -15,6 +15,3 @@ positional arguments:
     -h, --help     show this help message and exit
     -v, --verbose  verbose mode
     -hi, --hidden  scans all files including hidden files and folders
-
-LICENSE
-Please see the attached LICENSE document regarding the license on this software.
